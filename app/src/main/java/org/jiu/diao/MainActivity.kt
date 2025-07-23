@@ -33,10 +33,13 @@ import org.jiu.diao.ui.theme.你用个迪奥Theme
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
@@ -53,6 +56,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 
 class MainActivity : ComponentActivity() {
 
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -60,6 +64,12 @@ class MainActivity : ComponentActivity() {
             var senrenBankaPackageName by rememberSaveable { mutableStateOf<String?>(null) }
             val context = LocalContext.current
             val lifecycleOwner = LocalLifecycleOwner.current // 监听生命周期事件
+            val versionName = try { // 版本号
+                packageManager.getPackageInfo(packageName, 0).versionName
+            } catch (e: Exception) {
+                "\uD83D\uDE0B！勇敢迪奥！\uD83D\uDE0B"
+            }
+            var showDialog by remember { mutableStateOf(true) } // 控制是否显示弹窗，每次打开app都显示
 
             senrenBankaPackageName = FindSenrenBanka(context)
 
@@ -80,6 +90,40 @@ class MainActivity : ComponentActivity() {
             // 初次进入时也刷新一次
             LaunchedEffect(Unit) {
                 senrenBankaPackageName = FindSenrenBanka(context)
+            }
+            if (showDialog) {
+                Dialog(
+                    title = "应用信息",
+                    text =  "版本：$versionName\n" +
+                            "\n" +
+                            "软件介绍：本软件是一款全应用适用の娱乐性模块，不过在此建议第一次使用模块或内嵌用户谨慎使用，因为或许可能会在未来给您带来不必要的麻烦。\n" +
+                            "\n" +
+                            "交流群：『653540436』\n",
+                    onDismiss = {
+                        showDialog = false
+                        Toast.makeText(
+                            context,
+                            "\uD83D\uDE2D无视了迪奥！\uD83D\uDE2D",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    },
+                    onConfirm = {
+                        showDialog = false
+                        Toast.makeText(
+                            context,
+                            "\uD83D\uDE0B就要用迪奥！\uD83D\uDE0B",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    },
+                    onCancel = {
+                        showDialog = false
+                        Toast.makeText(
+                            context,
+                            "\uD83D\uDE02用了个迪奥！\uD83D\uDE02",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                )
             }
 
             你用个迪奥Theme {
@@ -137,7 +181,7 @@ class MainActivity : ComponentActivity() {
                                     verticalArrangement = Arrangement.Center,
                                     horizontalAlignment = Alignment.CenterHorizontally
                                 ) {
-                                    Mainbotton(name = "更多资源", onClick = {Open_More(context)})
+                                    Mainbotton(name = "软件信息", onClick = {Open_More(context)})
                                     Mainbotton(
                                         name = "模块交流群",
                                         onClick = { Open_ChatGroup(context) })
@@ -247,6 +291,35 @@ class MainActivity : ComponentActivity() {
         val intent = Intent(Intent.ACTION_VIEW, url.toUri())
         context.startActivity(intent)
     }
+
+    /**
+     * 开屏弹窗
+     */
+    @Composable
+    fun Dialog(
+        title: String,
+        text: String,
+        onDismiss: () -> Unit,
+        onConfirm: () -> Unit,
+        onCancel: () -> Unit
+    ) {
+        AlertDialog(
+            onDismissRequest = onDismiss,
+            title = { Text(title) },
+            text = { Text(text) },
+            confirmButton = {
+                TextButton(onClick = onConfirm) {
+                    Text("我要用迪奥！")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = onCancel) {
+                    Text("Ciallo ～(∠・ω< )⌒★!")
+                }
+            }
+        )
+    }
+
 
     // 测试函数
     fun FunTest() {

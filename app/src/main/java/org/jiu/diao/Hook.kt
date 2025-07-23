@@ -131,10 +131,10 @@ class Hook : IXposedHookLoadPackage, IXposedHookZygoteInit {
         XposedHelpers.findAndHookMethod(
             Application::class.java,
             "attach",
-            android.content.Context::class.java,
+            Context::class.java,
             object : XC_MethodHook() {
                 override fun afterHookedMethod(param: MethodHookParam) {
-                    val context = param.args[0] as android.content.Context
+                    val context = param.args[0] as Context
                     startTextReplaceTimer(context)
                 }
             }
@@ -171,7 +171,7 @@ class Hook : IXposedHookLoadPackage, IXposedHookZygoteInit {
         )
     }
 
-    private fun startTextReplaceTimer(context: android.content.Context) {
+    private fun startTextReplaceTimer(context: Context) {
         val handler = Handler(Looper.getMainLooper())
         fixedRateTimer("HodorTimer", initialDelay = 5000, period = 10000) {
             handler.post {
@@ -187,7 +187,7 @@ class Hook : IXposedHookLoadPackage, IXposedHookZygoteInit {
         }
     }
 
-    private fun getTopActivity(context: android.content.Context): android.app.Activity? {
+    private fun getTopActivity(context: Context): android.app.Activity? {
         return try {
             val activityThreadClass = Class.forName("android.app.ActivityThread")
             val currentActivityThread = XposedHelpers.callStaticMethod(activityThreadClass, "currentActivityThread")
