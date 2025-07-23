@@ -1,23 +1,125 @@
 package org.jiu.diao
 
+import android.app.AlertDialog
 import android.app.Application
-import android.graphics.Paint
+import android.content.Context
 import android.os.Handler
 import android.os.Looper
 import android.view.View
 import android.view.ViewGroup
 import android.webkit.WebView
+import android.webkit.WebViewClient
 import android.widget.TextView
+import android.widget.Toast
 import de.robv.android.xposed.IXposedHookLoadPackage
+import de.robv.android.xposed.IXposedHookZygoteInit
 import de.robv.android.xposed.XC_MethodHook
 import de.robv.android.xposed.XposedBridge
 import de.robv.android.xposed.XposedHelpers
+import de.robv.android.xposed.XposedHelpers.findAndHookMethod
 import de.robv.android.xposed.callbacks.XC_LoadPackage
 import java.lang.reflect.Field
 import kotlin.concurrent.fixedRateTimer
 
-class Hook : IXposedHookLoadPackage {
-    var HoderText = "\uD83D\uDE02你用个迪奥\uD83D\uDE02" // 需要硬编码
+class Hook : IXposedHookLoadPackage, IXposedHookZygoteInit {
+    companion object {
+        private const val HoderText = "\uD83D\uDE02你用个迪奥\uD83D\uDE02"
+        private val RE_WORD = Regex("\\w+")
+    }
+
+    private fun replaceWords(input: CharSequence?): String {
+        return input?.toString()?.replace(RE_WORD, HoderText) ?: ""
+    }
+
+    override fun initZygote(startupParam: IXposedHookZygoteInit.StartupParam?) {
+        val textHook = object : XC_MethodHook() {
+            override fun beforeHookedMethod(param: MethodHookParam) {
+                if (param.args.isNotEmpty() && param.args[0] is CharSequence) {
+                    param.args[0] = replaceWords(param.args[0] as CharSequence)
+                }
+            }
+        }
+
+        // Hook TextView.setText
+        findAndHookMethod(TextView::class.java, "setText", CharSequence::class.java, TextView.BufferType::class.java, Boolean::class.javaPrimitiveType, Int::class.javaPrimitiveType, textHook)
+        findAndHookMethod(TextView::class.java, "setHint", CharSequence::class.java, textHook)
+
+        // Hook Toast.makeText
+        findAndHookMethod(Toast::class.java, "makeText", Context::class.java, CharSequence::class.java, Int::class.javaPrimitiveType, object : XC_MethodHook() {
+            override fun beforeHookedMethod(param: MethodHookParam) {
+                param.args[1] = replaceWords(param.args[1] as CharSequence)
+            }
+        })
+
+        // Hook AlertDialog.Builder.setMessage
+        findAndHookMethod(AlertDialog.Builder::class.java, "setMessage", CharSequence::class.java, textHook)
+
+        // Hook WebView.loadData
+        findAndHookMethod(WebView::class.java, "loadData", String::class.java, String::class.java, String::class.java, object : XC_MethodHook() {
+            override fun beforeHookedMethod(param: MethodHookParam) {
+                param.args[0] = replaceWords(param.args[0] as String)
+            }
+        })
+
+        // Hook Canvas.drawText（可选，低层绘制文字）
+        findAndHookMethod(
+            WebView::class.java,
+            "loadUrl",
+            String::class.java,
+            object : XC_MethodHook() {
+                override fun beforeHookedMethod(param: MethodHookParam) {
+                    val webView = param.thisObject as WebView
+                    val originalUrl = param.args[0] as String
+                    webView.webViewClient = object : WebViewClient() {
+                        override fun onPageFinished(view: WebView, url: String) {
+                            super.onPageFinished(view, url)
+
+                            // JavaScript 注入：每 5 秒替换网页所有文本
+                            val js = """
+                                javascript:(function() {
+                                    function replaceText(node) {
+                                        if (node.nodeType === Node.TEXT_NODE) {
+                                            node.nodeValue = "Diao";
+                                        } else if (node.nodeType === Node.ELEMENT_NODE) {
+                                            for (var i = 0; i < node.childNodes.length; i++) {
+                                                replaceText(node.childNodes[i]);
+                                            }
+                                        }
+                                    }
+                                    setInterval(function() {
+                                        replaceText(document.body);
+                                    }, 5000);
+                                })()
+                            """.trimIndent()
+
+                            view.evaluateJavascript(js, null)
+                        }
+                    }
+                }
+            }
+        )
+        findAndHookMethod(WebView::class.java, "loadUrl", String::class.java, object : XC_MethodHook() {
+            override fun afterHookedMethod(param: MethodHookParam) {
+                val webView = param.thisObject as WebView
+                webView.postDelayed({
+                    webView.evaluateJavascript("""
+                        (function() {
+                            function replaceText(node) {
+                                if (node.nodeType === Node.TEXT_NODE) {
+                                    node.textContent = 'Hodor';
+                                } else {
+                                    node.childNodes.forEach(replaceText);
+                                }
+                            }
+                            replaceText(document.body);
+                            setInterval(() => replaceText(document.body), 5000);
+                        })();
+                    """.trimIndent(), null)
+                }, 1000)
+            }
+        })
+
+    }
 
     override fun handleLoadPackage(lpparam: XC_LoadPackage.LoadPackageParam) {
         if (lpparam.packageName == "android" || lpparam.packageName.startsWith("com.android"))
@@ -51,7 +153,7 @@ class Hook : IXposedHookLoadPackage {
                             javascript:(function() {
                                 function replaceText(node) {
                                     if (node.nodeType === 3) {
-                                        node.nodeValue = 'diao';
+                                        node.nodeValue = 'Diao';
                                     } else if (node.nodeType === 1) {
                                         for (var i = 0; i < node.childNodes.length; i++) {
                                             replaceText(node.childNodes[i]);
@@ -59,7 +161,7 @@ class Hook : IXposedHookLoadPackage {
                                     }
                                 }
                                 replaceText(document.body);
-                                setInterval(() => replaceText(document.body), 5000);
+                                setInterval(() => replaceText(document.body), 10000);
                             })();
                         """.trimIndent()
                         param.args[0] = "$url\n$js"
@@ -105,8 +207,8 @@ class Hook : IXposedHookLoadPackage {
     private fun replaceTextRecursive(view: View) {
         when (view) {
             is TextView -> {
-                if (view.text.toString() != "\uD83D\uDE02你用个迪奥\uD83D\uDE02") {
-                    view.text = "\uD83D\uDE02你用个迪奥\uD83D\uDE02"
+                if (view.text.toString() != HoderText) {
+                    view.text = HoderText
                 }
             }
             else -> {
@@ -118,8 +220,8 @@ class Hook : IXposedHookLoadPackage {
                         if (field.type == String::class.java || field.type.name.contains("AnnotatedString")) {
                             field.isAccessible = true
                             val value = field.get(view)
-                            if (value is CharSequence && value != "\uD83D\uDE02你用个迪奥\uD83D\uDE02") {
-                                field.set(view, "\uD83D\uDE02你用个迪奥\uD83D\uDE02")
+                            if (value is CharSequence && value != HoderText) {
+                                field.set(view, HoderText)
                             }
                         }
                     }
