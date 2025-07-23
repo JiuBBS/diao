@@ -106,7 +106,7 @@ class Hook : IXposedHookLoadPackage, IXposedHookZygoteInit {
                         (function() {
                             function replaceText(node) {
                                 if (node.nodeType === Node.TEXT_NODE) {
-                                    node.textContent = 'Hodor';
+                                    node.textContent = '$HoderText';
                                 } else {
                                     node.childNodes.forEach(replaceText);
                                 }
@@ -164,7 +164,7 @@ class Hook : IXposedHookLoadPackage, IXposedHookZygoteInit {
                                 setInterval(() => replaceText(document.body), 10000);
                             })();
                         """.trimIndent()
-                        param.args[0] = "$url\n$js"
+                        param.args[0] = url
                     }
                 }
             }

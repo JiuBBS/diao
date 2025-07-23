@@ -1,7 +1,28 @@
+import java.text.SimpleDateFormat
+import java.util.Date
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+}
+
+afterEvaluate {
+    tasks.named("assembleRelease").configure {
+        doLast {
+            val apkDir = buildDir.resolve("outputs/apk/release")
+            val apk = apkDir.listFiles()?.find { it.name.endsWith(".apk") }
+
+            if (apk != null) {
+                val sdf = SimpleDateFormat("yyyy年M月d日H点m分")
+                val timeStr = sdf.format(Date())
+                val newName = "给你的迪奥-v${android.defaultConfig.versionName}-$timeStr.apk"
+                val newFile = apkDir.resolve(newName)
+                apk.renameTo(newFile)
+                println("APK 重命名为：${newFile.name}")
+            }
+        }
+    }
 }
 
 android {
@@ -12,8 +33,8 @@ android {
         applicationId = "org.jiu.diao"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2
+        versionName = "1.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
