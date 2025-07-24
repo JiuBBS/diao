@@ -181,7 +181,7 @@ class MainActivity : ComponentActivity() {
                                     verticalArrangement = Arrangement.Center,
                                     horizontalAlignment = Alignment.CenterHorizontally
                                 ) {
-                                    Mainbotton(name = "软件信息", onClick = {Open_More(context)})
+                                    Mainbotton(name = "软件信息", onClick = {showDialog=true})
                                     Mainbotton(
                                         name = "模块交流群",
                                         onClick = { Open_ChatGroup(context) })
